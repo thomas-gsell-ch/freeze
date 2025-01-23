@@ -1,0 +1,112 @@
+
+# Production environment
+services:
+
+  rabbitmq:
+    image: rabbitmq:management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"   # RabbitMQ Protocol
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+      - RABBITMQ_LOAD_DEFINITIONS=1
+      - RABBITMQ_DEFINITIONS_FILE=/etc/rabbitmq/definitions.json
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./rabbitmq_definitions.json:/etc/rabbitmq/definitions.json
+
+  rabbitmq_initializer:
+    image: curlimages/curl:latest
+    container_name: rabbitmq_initializer
+    depends_on:
+      - rabbitmq
+    entrypoint: ["sh", "-c", "sleep 15 && curl -u guest:guest -X POST -H 'Content-Type: application/json' -d @/etc/rabbitmq/definitions.json http://rabbitmq:15672/api/definitions"]
+    volumes:
+      - ./rabbitmq_definitions.json:/etc/rabbitmq/definitions.json
+    restart: "no"
+
+  frontend_prod:
+    container_name: frontend_prod
+    build:
+      dockerfile: Dockerfile.prod
+    ports:
+      - "8080:80"
+    depends_on:
+      - productproviderservice
+    
+  productproviderservice:
+    build:
+      context: productproviderservice
+      dockerfile: Dockerfile
+    ports:
+      - 5000:5000
+    depends_on:
+      - mongodb_products
+  
+  bestreachedpnservice:
+    build:
+      context: bestreachedpnservice
+      dockerfile: Dockerfile
+    ports:
+      - 5001:5000
+    depends_on:
+      - mongodb_warndates
+      - rabbitmq
+
+  mongodb_products:
+    image: mongo
+    restart: always
+    container_name: mongodb_products
+    ports:
+      - "27017:27017"    #geht mit mongodb_products:27017 und localhost:27017
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+      - MONGO_INITDB_DATABASE=productsdb
+    volumes:
+      - ./db/mongodb_products-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  mongodb_warndates:
+    image: mongo
+    restart: always
+    container_name: mongodb_warndates
+    ports:
+      - "27018:27017"  #geht mit mongodb_warndates:27017 und localhost:27018
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+      - MONGO_INITDB_DATABASE=warndatesdb
+    volumes:
+      - ./db/mongodb_warndates-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  mongodb_prodperlocs:
+    image: mongo
+    restart: always
+    container_name: mongodb_prodperlocs
+    ports:
+      - "27019:27017"
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=root
+      - MONGO_INITDB_ROOT_PASSWORD=example
+      - MONGO_INITDB_DATABASE=prodperlocsdb
+    volumes:
+      - ./db/mongodb_prodperlocs-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+
+  # for imformative purposes only
+  mongo-express:
+    image: mongo-express
+    restart: always
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: example
+      ME_CONFIG_MONGODB_ENABLE_ADMIN: true
+      ME_CONFIG_BASICAUTH: false
+      # ME_CONFIG_MONGODB_URL: mongodb://root:example@mongodb_products:27017/
+      ME_CONFIG_MONGODB_URL: mongodb://root:example@mongodb_warndates:27017/
+      # ME_CONFIG_MONGODB_URL: mongodb://root:example@mongodb_prodperlocs:27017/
+
+volumes:
+  rabbitmq_data:

@@ -1,0 +1,43 @@
+{
+    "vhosts": [
+      {
+        "name": "/"
+      }
+    ],
+    "exchanges": [
+      {
+        "name": "product_exchange",
+        "type": "fanout",
+        "durable": true,
+        "vhost": "/"
+      }
+    ],
+    "queues": [
+      {
+        "name": "brpnservice_queue",
+        "durable": true,
+        "vhost": "/"
+      },
+      {
+        "name": "pplservice_queue",
+        "durable": true,
+        "vhost": "/"
+      }
+    ],
+    "bindings": [
+      {
+        "source": "product_exchange",
+        "destination": "brpnservice_queue",
+        "destination_type": "queue",
+        "routing_key": "brpnservice",
+        "vhost": "/"
+      },
+      {
+        "source": "product_exchange",
+        "destination": "pplservice_queue",
+        "destination_type": "queue",
+        "routing_key": "pplservice",
+        "vhost": "/"
+      }
+    ]
+  }

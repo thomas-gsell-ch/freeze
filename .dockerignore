@@ -1,0 +1,10 @@
+productproviderservice
+bestreachedpnservice
+db
+test
+node_modules
+.git
+*.md
+.gitignore
+*.yml
+rabbitmq_definitions.json
